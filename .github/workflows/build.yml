@@ -1,0 +1,78 @@
+name: CICD
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+      - 'keycloak-*'
+    tags:
+      - 'v*.*.*-*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+# Set docker image names.
+    - name: Setup env variables
+      run: |
+        echo "DOCKER_SERVICE=kvalitetsit/keycloak-auth-multi-value" >> $GITHUB_ENV
+
+# Checkout source code
+    - uses: actions/checkout@v3
+
+# Cache maven stuff
+    - name: Cache local Maven repository
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+# if below step is skipped this build is a tag build. Can be used for skipping other steps.
+    - name: Is Tag Build
+      id: tag
+      if:  ${{ startsWith(github.ref, 'refs/tags/v') }}
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\/v/}
+
+# Login to docker hub using secrets in GitHub.
+    - name: Login to docker
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_HUB_USER }}
+        password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+    - name: Build and test
+      run: ./build/maven.sh
+
+    - name: Tag service dev docker image
+      run: ./build/docker-tag.sh ${{ env.DOCKER_SERVICE }}:latest ${{ env.DOCKER_SERVICE }}:dev
+
+    - name: Push service dev docker image
+      run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:dev
+
+    - name: Tag service git id docker image
+      run: ./build/docker-tag.sh ${{ env.DOCKER_SERVICE }}:latest ${{ env.DOCKER_SERVICE }}:${{ github.sha }}
+
+    - name: Push service git id docker image.
+      run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:${{ github.sha }}
+
+    - name: Push latest service docker image
+      if: ${{ steps.tag.conclusion != 'skipped' }}
+      run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:latest
+
+    - name: Tag version service docker image
+      if: ${{ steps.tag.conclusion != 'skipped' }}
+      run: ./build/docker-tag.sh ${{ env.DOCKER_SERVICE }}:latest ${{ env.DOCKER_SERVICE }}:${{ steps.tag.outputs.VERSION }}
+
+    - name: Push version service docker image.
+      if: ${{ steps.tag.conclusion != 'skipped' }}
+      run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:${{ steps.tag.outputs.VERSION }}
+
+    - name: Create Release Notes
+      uses: softprops/action-gh-release@v1
+      if: ${{ steps.tag.conclusion != 'skipped' }}
+      with:
+        generate_release_notes: true

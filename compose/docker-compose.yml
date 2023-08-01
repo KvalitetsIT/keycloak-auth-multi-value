@@ -1,0 +1,18 @@
+version: '2'
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:20.0
+    volumes:
+      - ./realms/test-realm.json:/opt/keycloak/data/import/test-realm.json
+      - ./realms/attribute-realm.json:/opt/keycloak/data/import/attribute-realm.json
+      - ../service/target/service.jar:/opt/keycloak/providers/service.jar
+    command: start-dev --http-relative-path /auth --import-realm
+    environment:
+      - KEYCLOAK_ADMIN=kit
+      - KEYCLOAK_ADMIN_PASSWORD=Test1234
+      - KEYCLOAK_LOG_LEVEL=DEBUG
+      - required_action_choose_attribute_attribute_name=organisation
+    ports:
+      - 8080:8080
+
+
