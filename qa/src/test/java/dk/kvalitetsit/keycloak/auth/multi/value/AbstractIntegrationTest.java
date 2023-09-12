@@ -63,7 +63,7 @@ public class AbstractIntegrationTest {
         var image = new ImageFromDockerfile()
                 .withFileFromFile("keycloak-auth-multi-value.jar", new File("../service/target/service.jar"))
                 .withDockerfileFromBuilder(builder ->
-                        builder.from("quay.io/keycloak/keycloak:20.0")
+                        builder.from("quay.io/keycloak/keycloak:22.0")
                                 .copy("keycloak-auth-multi-value.jar", "/opt/keycloak/providers/keycloak-auth-multi-value.jar")
                                 .build());
 

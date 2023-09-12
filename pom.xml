@@ -38,8 +38,8 @@
     <description>Keycloak Auth Multi Value</description>
 
     <properties>
-        <java.version>11</java.version>
-        <keycloak.version>20.0.0</keycloak.version>
+        <java.version>17</java.version>
+        <keycloak.version>22.0.2</keycloak.version>
         <testcontainers.version>1.18.3</testcontainers.version>
         <jacoco.version>0.8.10</jacoco.version>
     </properties>
@@ -71,6 +71,12 @@
                 <groupId>dk.kvalitetsit.keycloak.auth.multi.value</groupId>
                 <artifactId>testreport</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>jakarta.ws.rs</groupId>
+                <artifactId>jakarta.ws.rs-api</artifactId>
+                <version>3.1.0</version>
             </dependency>
 
             <!-- Keycloak -->
