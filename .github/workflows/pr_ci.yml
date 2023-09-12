@@ -20,6 +20,13 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-
 
+# Setup Java 17
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
     - name: Build and test
       run: ./build/maven.sh
 
