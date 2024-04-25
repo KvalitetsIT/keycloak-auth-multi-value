@@ -719,6 +719,19 @@
             "friendly.name": "organisation",
             "attribute.name": "organisation"
           }
+        },
+        {
+          "id": "8b0a3f60-1898-48f2-aef4-96bf5154ca8e",
+          "name": "email",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "attribute.nameformat": "Basic",
+            "user.attribute": "email",
+            "friendly.name": "email",
+            "attribute.name": "email"
+          }
         }
       ],
       "defaultClientScopes": [

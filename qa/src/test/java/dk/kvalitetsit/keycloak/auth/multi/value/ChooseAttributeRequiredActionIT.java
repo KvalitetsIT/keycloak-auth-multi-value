@@ -26,7 +26,7 @@ public class ChooseAttributeRequiredActionIT extends AbstractIntegrationTest {
         WebClient webdriver = getWebDriver();
 
         //When..Then
-        HtmlPage afterLogin = doLoginFlow(webdriver, appendToKeycloakHostAndPort("/auth/realms/Test/account"), username, password);
+        HtmlPage afterLogin = doLoginFlow(webdriver, username, password);
         assertFalse(isAttributeInputPage(afterLogin));
 
         // User is created and has no attributes
@@ -52,7 +52,7 @@ public class ChooseAttributeRequiredActionIT extends AbstractIntegrationTest {
         WebClient webdriver = getWebDriver();
 
         //When..Then
-        HtmlPage afterLogin = doLoginFlow(webdriver, appendToKeycloakHostAndPort("/auth/realms/Test/account"), username, password);
+        HtmlPage afterLogin = doLoginFlow(webdriver, username, password);
         assertFalse(isAttributeInputPage(afterLogin));
 
         // User is created and has correct attribute
@@ -83,7 +83,7 @@ public class ChooseAttributeRequiredActionIT extends AbstractIntegrationTest {
         WebClient webdriver = getWebDriver();
 
         //When..Then
-        HtmlPage afterLogin = doLoginFlow(webdriver, appendToKeycloakHostAndPort("/auth/realms/Test/account"), username, password);
+        HtmlPage afterLogin = doLoginFlow(webdriver, username, password);
         assertTrue(isAttributeInputPage(afterLogin));
 
         HtmlPage afterAttributeChoice = setAttribute(afterLogin, "attribute2");
@@ -100,11 +100,9 @@ public class ChooseAttributeRequiredActionIT extends AbstractIntegrationTest {
         assertEquals(1, user.getAttributes().get("organisation").size());
         assertEquals("attribute2", user.getAttributes().get("organisation").get(0));
 
-        // Logout
-        doLogoutFlow(webdriver, appendToKeycloakHostAndPort("/auth/realms/Test/account"));
-
+        webdriver = getWebDriver();
         // Login again and choose new attribute
-        HtmlPage afterSecondLogin = doLoginFlow(webdriver, appendToKeycloakHostAndPort("/auth/realms/Test/account"), username, password);
+        HtmlPage afterSecondLogin = doLoginFlow(webdriver, username, password);
         assertTrue(isAttributeInputPage(afterSecondLogin));
 
         HtmlPage afterAttributeChoiceSecondLogin = setAttribute(afterSecondLogin, "attribute4");
@@ -121,20 +119,12 @@ public class ChooseAttributeRequiredActionIT extends AbstractIntegrationTest {
     }
 
 
-    public HtmlPage doLoginFlow(WebClient wc, String accountUrl, String username, String password) throws IOException {
-
-        // Get the account page
-        HtmlPage mainPage = wc.getPage(accountUrl);
-        var loginUrl = mainPage.executeJavaScript("keycloak.createLoginUrl();").getJavaScriptResult();
-
-        // Click login
-        HtmlPage loginPage = wc.getPage(loginUrl.toString());
-
-        // Select "saml" IDP
-        HtmlPage samllogin = loginPage.getElementById("social-saml").click();
+    public HtmlPage doLoginFlow(WebClient wc, String username, String password) throws IOException {
+        // Access oauth2 proxy. It redirects to keycloak
+        HtmlPage mainPage = wc.getPage(appendToProxyHostAndPort("/"));
 
         // Do login
-        HtmlForm loginForm = samllogin.getForms().get(0);
+        HtmlForm loginForm = mainPage.getForms().get(0);
         loginForm.getInputByName("username").setValueAttribute(username);
         loginForm.getInputByName("password").setValueAttribute(password);
 
