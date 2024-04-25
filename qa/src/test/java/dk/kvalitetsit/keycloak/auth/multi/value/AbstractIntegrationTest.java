@@ -26,6 +26,9 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.*;
 import java.util.function.Consumer;
@@ -40,15 +43,18 @@ public class AbstractIntegrationTest {
     private static final RestTemplate restTemplate = new RestTemplate();
 
     private static String accessToken;
+    private static int proxyPort;
+    private static String proxyHost;
 
     @BeforeClass
-    public static void setupTestEnvironment() throws JSONException {
+    public static void setupTestEnvironment() throws JSONException, IOException {
         Network n = Network.newNetwork();
 
         // Start Keycloak service
-        GenericContainer<?> keycloakContainer = getKeycloakContainer(n);
+        var version = calculateKeycloakVersion();
+        GenericContainer<?> keycloakContainer = getKeycloakContainer(n, version);
         keycloakContainer.start();
-
+        setupProxyContainer(n);
 
         logContainerOutput(keycloakContainer, keycloakLogger);
         keycloakPort = keycloakContainer.getMappedPort(8080);
@@ -56,14 +62,14 @@ public class AbstractIntegrationTest {
         accessToken = getAccessToken();
     }
 
-    private static GenericContainer<?> getKeycloakContainer(Network n) {
-        logger.info("Starting keycloak container version 20.0");
-        Consumer<CreateContainerCmd> cmd = e -> e.withHostConfig(new HostConfig().withPortBindings(new PortBinding(Ports.Binding.bindPort(8080), new ExposedPort(8080))));
+    private static GenericContainer<?> getKeycloakContainer(Network n, String tag) {
+        logger.info("Starting keycloak container version {}", tag);
+        Consumer<CreateContainerCmd> cmd = e -> e.withPortBindings(new PortBinding(Ports.Binding.bindPort(8080), new ExposedPort(8080)));
 
         var image = new ImageFromDockerfile()
                 .withFileFromFile("keycloak-auth-multi-value.jar", new File("../service/target/service.jar"))
                 .withDockerfileFromBuilder(builder ->
-                        builder.from("quay.io/keycloak/keycloak:22.0")
+                        builder.from("quay.io/keycloak/keycloak:" + tag)
                                 .copy("keycloak-auth-multi-value.jar", "/opt/keycloak/providers/keycloak-auth-multi-value.jar")
                                 .build());
 
@@ -77,9 +83,67 @@ public class AbstractIntegrationTest {
                 .withEnv("required_action_choose_attribute_attribute_name", "organisation")
 
                 .withNetwork(n)
+                .withNetworkAliases("keycloak")
                 .withExposedPorts(8080)
                 .withCreateContainerCmdModifier(cmd)
                 .waitingFor(Wait.forHttp("/auth").withStartupTimeout(Duration.ofMinutes(3)));
+    }
+
+    private static String calculateKeycloakVersion() throws IOException {
+        var properties = new Properties();
+        var path = Paths.get(".").toAbsolutePath().normalize().toString();
+        if(path.endsWith("qa")) {
+            properties.load(new FileInputStream("../target/classes/git.properties"));
+        }
+        else {
+            properties.load(new FileInputStream("target/classes/git.properties"));
+        }
+        var gitBranch = properties.getProperty("git.branch");
+
+        if(gitBranch.startsWith("keycloak-")) {
+            return gitBranch.substring(9);
+        }
+
+        return "latest";
+    }
+
+    private static void setupProxyContainer(Network n) {
+        GenericContainer<?> nginx = new GenericContainer<>("nginx")
+                .withExposedPorts(80)
+                .waitingFor(Wait.forHttp("/"))
+                .withNetworkAliases("nginx")
+                .withNetwork(n);
+        nginx.start();
+
+        GenericContainer<?> oauthProxy = new GenericContainer<>("quay.io/oauth2-proxy/oauth2-proxy:v7.6.0")
+                .withNetwork(n)
+                .withExposedPorts(4180)
+                .withCommand(
+                        "--provider=oidc",
+                        "--client-id=oauth2-proxy",
+                        "--client-secret=4AaKzgtdzIlsUyIQQKDYy6V08aozOpvE",
+                        "--http-address=0.0.0.0:4180",
+                        "--insecure-oidc-allow-unverified-email=true",
+                        "--session-store-type=cookie",
+                        "--upstream=http://nginx:80",
+                        "--skip-provider-button=true",
+                        "--skip-auth-preflight",
+                        "--errors-to-info-log",
+                        "--cookie-name=test",
+                        "--skip-oidc-discovery",
+                        "--redeem-url=http://keycloak:8080/auth/realms/Test/protocol/openid-connect/token",
+                        "--login-url=http://localhost:8080/auth/realms/Test/protocol/openid-connect/auth",
+                        "--oidc-jwks-url=http://keycloak:8080/auth/realms/Test/protocol/openid-connect/certs",
+                        "--skip-oidc-discovery=true",
+                        "--cookie-secure=false",
+
+                        "--oidc-issuer-url=http://localhost:8080/auth/realms/Test",
+                        "--cookie-secret=ThisSecretShouldBeThisLong_12345",
+                        "--email-domain=*")
+                .waitingFor(Wait.forListeningPort());
+        oauthProxy.start();
+        proxyPort = oauthProxy.getMappedPort(4180);
+        proxyHost = oauthProxy.getContainerIpAddress();
     }
 
     private static void logContainerOutput(GenericContainer<?> container, Logger logger) {
@@ -111,6 +175,7 @@ public class AbstractIntegrationTest {
         credential.setTemporary(false);
         user.setFirstName("John");
         user.setLastName("Doe");
+        user.setEmail(String.format("%s@example.com", UUID.randomUUID()));
         user.getCredentials().add(credential);
         user.getAttributes().put("USER_ID", Collections.singletonList(userId));
         if (attributeList.size() > 0) {
@@ -190,5 +255,9 @@ public class AbstractIntegrationTest {
 
     public static String appendToKeycloakHostAndPort(String url) {
         return "http://"+ keycloakHost +":"+keycloakPort+url;
+    }
+
+    public static String appendToProxyHostAndPort(String url) {
+        return "http://" + proxyHost + ":" + proxyPort+url;
     }
 }
