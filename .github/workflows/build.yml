@@ -20,7 +20,7 @@ jobs:
         echo "DOCKER_SERVICE=kvalitetsit/keycloak-auth-multi-value" >> $GITHUB_ENV
 
 # Checkout source code
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
 # Cache maven stuff
     - name: Cache local Maven repository
