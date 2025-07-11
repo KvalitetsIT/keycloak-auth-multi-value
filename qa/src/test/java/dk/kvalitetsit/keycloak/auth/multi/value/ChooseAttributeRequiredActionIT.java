@@ -128,33 +128,12 @@ public class ChooseAttributeRequiredActionIT extends AbstractIntegrationTest {
         loginForm.getInputByName("username").setValueAttribute(username);
         loginForm.getInputByName("password").setValueAttribute(password);
 
-        Page loginResult =  loginForm.getInputByName("login").click();
+        Page loginResult = loginForm.getButtonByName("login").click();
 
         if (loginResult.isHtmlPage()) {
             return (HtmlPage) loginResult;
         }
         throw new RuntimeException("Ikke en htmlside som resultat: " + loginResult.getWebResponse().getContentAsString());
-    }
-
-    public HtmlPage doLogoutFlow(WebClient wc, String accountUrl) throws IOException {
-
-        // Get the account page
-        HtmlPage mainPage = wc.getPage(accountUrl);
-        var logoutUrl = mainPage.executeJavaScript("keycloak.createLogoutUrl();").getJavaScriptResult();
-
-        // Click login
-        HtmlPage logoutPage = wc.getPage(logoutUrl.toString());
-
-        // Do login
-        HtmlForm logoutForm = logoutPage.getForms().get(0);
-        System.out.println(logoutForm);
-
-        Page logoutResult =  logoutForm.getInputByName("confirmLogout").click();
-
-        if (logoutResult.isHtmlPage()) {
-            return (HtmlPage) logoutResult;
-        }
-        throw new RuntimeException("Ikke en htmlside som resultat: " + logoutResult.getWebResponse().getContentAsString());
     }
 
     public HtmlPage setAttribute(HtmlPage page, String attribute) throws IOException {

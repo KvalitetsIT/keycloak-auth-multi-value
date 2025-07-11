@@ -15,3 +15,8 @@ the Keycloak realm under Authentication.
 Further, the Keycloak installation should be given the environment variable
 * `required_action_choose_attribute_attribute_name`: The name of the attribute the user should choose from. This should 
 match the attribute name received from the IdP.
+
+## Releasing
+To support various Keycloak versions the version of the plugin tells which version the plugin have been tested against 
+and the version of the plugin. For instance version `1.0.0-20.0.5` says that the version have been tested against Keycloak 
+version 20.0.5 and the plugin is version `1.0.0`. Version tags are prefixed with `v`.

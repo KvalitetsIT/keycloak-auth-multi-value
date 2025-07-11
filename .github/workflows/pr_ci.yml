@@ -13,7 +13,7 @@ jobs:
 
 # Cache maven stuff
     - name: Cache local Maven repository
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -31,7 +31,7 @@ jobs:
       run: ./build/maven.sh
 
     - name: Upload Jacoco coverage report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: jacoco-report
         path: testreport/target/site/jacoco-aggregate/
@@ -41,7 +41,7 @@ jobs:
         mkdir -p ./pr
         echo ${{ github.event.number }} > ./pr/NR
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: pr
         path: |
