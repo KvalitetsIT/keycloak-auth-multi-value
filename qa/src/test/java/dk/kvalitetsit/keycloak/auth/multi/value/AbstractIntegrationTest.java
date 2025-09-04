@@ -71,8 +71,8 @@ public class AbstractIntegrationTest {
                                 .build());
 
         var keycloakContainer = new GenericContainer<>(image)
-                .withClasspathResourceMapping("test-realm.json", "/opt/keycloak/data/import/test-realm.json", BindMode.READ_ONLY)
-                .withClasspathResourceMapping("attribute-realm.json", "/opt/keycloak/data/import/attribute-realm.json", BindMode.READ_ONLY)
+                .withClasspathResourceMapping("test-realm.json", "/opt/keycloak/data/import/Test-realm.json", BindMode.READ_ONLY)
+                .withClasspathResourceMapping("attribute-realm.json", "/opt/keycloak/data/import/Attribute-realm.json", BindMode.READ_ONLY)
                 .withCommand("start-dev", "--http-relative-path", "/auth", "--import-realm")
                 .withEnv("KC_BOOTSTRAP_ADMIN_USERNAME", "kit")
                 .withEnv("KC_BOOTSTRAP_ADMIN_PASSWORD", "Test1234")
