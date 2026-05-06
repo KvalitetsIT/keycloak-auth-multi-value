@@ -4,82 +4,89 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - 'main'
-      - 'keycloak-*'
+      - "main"
+      - "keycloak-*"
     tags:
-      - 'v*.*.*-*.*.*'
+      - "v*.*.*-*.*.*"
+
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    env:
+      DOCKER_SERVICE: kvalitetsit/keycloak-auth-multi-value
+    permissions:
+      contents: read
     steps:
-# Set docker image names.
-    - name: Setup env variables
-      run: |
-        echo "DOCKER_SERVICE=kvalitetsit/keycloak-auth-multi-value" >> $GITHUB_ENV
+      # Checkout source code
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
-# Checkout source code
-    - uses: actions/checkout@v5
+      # Cache maven stuff
+      - name: Cache local Maven repository
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
-# Cache maven stuff
-    - name: Cache local Maven repository
-      uses: actions/cache@v4
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-
 
-# if below step is skipped this build is a tag build. Can be used for skipping other steps.
-    - name: Is Tag Build
-      id: tag
-      if:  ${{ startsWith(github.ref, 'refs/tags/v') }}
-      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\/v/}
+      # if below step is skipped this build is a tag build. Can be used for skipping other steps.
+      - name: Is Tag Build
+        id: tag
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
 
-# Login to docker hub using secrets in GitHub.
-    - name: Login to docker
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_HUB_USER }}
-        password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+      # Login to docker hub using secrets in GitHub.
+      - name: Login to docker
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          username: ${{ secrets.DOCKER_HUB_USER }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-# Setup Java 17
-    - name: Set up JDK 17
-      uses: actions/setup-java@v5
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      # Setup Java 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          java-version: "17"
+          distribution: "temurin"
 
-    - name: Build and test
-      run: ./build/maven.sh
+      - name: Build and test
+        run: ./build/maven.sh
 
-    - name: Tag service dev docker image
-      run: ./build/docker-tag.sh ${{ env.DOCKER_SERVICE }}:latest ${{ env.DOCKER_SERVICE }}:dev
+      - name: Tag service dev docker image
+        run: ./build/docker-tag.sh ${{ env.DOCKER_SERVICE }}:latest ${{ env.DOCKER_SERVICE }}:dev
 
-    - name: Push service dev docker image
-      run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:dev
+      - name: Push service dev docker image
+        run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:dev
 
-    - name: Tag service git id docker image
-      run: ./build/docker-tag.sh ${{ env.DOCKER_SERVICE }}:latest ${{ env.DOCKER_SERVICE }}:${{ github.sha }}
+      - name: Tag service git id docker image
+        run: ./build/docker-tag.sh ${{ env.DOCKER_SERVICE }}:latest ${{ env.DOCKER_SERVICE }}:${{ github.sha }}
 
-    - name: Push service git id docker image.
-      run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:${{ github.sha }}
+      - name: Push service git id docker image.
+        run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:${{ github.sha }}
 
-    - name: Push latest service docker image
-      if: ${{ steps.tag.conclusion != 'skipped' }}
-      run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:latest
+      - name: Push latest service docker image
+        if: ${{ steps.tag.conclusion != 'skipped' }}
+        run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:latest
 
-    - name: Tag version service docker image
-      if: ${{ steps.tag.conclusion != 'skipped' }}
-      run: ./build/docker-tag.sh ${{ env.DOCKER_SERVICE }}:latest ${{ env.DOCKER_SERVICE }}:${{ steps.tag.outputs.VERSION }}
+      - name: Tag version service docker image
+        if: ${{ steps.tag.conclusion != 'skipped' }}
+        env:
+          VERSION: ${{ steps.tag.outputs.VERSION }}
+        run: ./build/docker-tag.sh ${{ env.DOCKER_SERVICE }}:latest ${{ env.DOCKER_SERVICE }}:${VERSION}
 
-    - name: Push version service docker image.
-      if: ${{ steps.tag.conclusion != 'skipped' }}
-      run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:${{ steps.tag.outputs.VERSION }}
+      - name: Push version service docker image.
+        if: ${{ steps.tag.conclusion != 'skipped' }}
+        env:
+          VERSION: ${{ steps.tag.outputs.VERSION }}
+        run: ./build/docker-push.sh ${{ env.DOCKER_SERVICE }}:${VERSION}
 
-    - name: Create Release Notes
-      uses: softprops/action-gh-release@v2
-      if: ${{ steps.tag.conclusion != 'skipped' }}
-      with:
-        generate_release_notes: true
+      - name: Create Release Notes
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        if: ${{ steps.tag.conclusion != 'skipped' }}
+        with:
+          generate_release_notes: true
