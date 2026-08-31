@@ -23,7 +23,7 @@ jobs:
           echo "DOCKER_SERVICE=kvalitetsit/keycloak-auth-multi-value" >> $GITHUB_ENV
 
       # Checkout source code
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
